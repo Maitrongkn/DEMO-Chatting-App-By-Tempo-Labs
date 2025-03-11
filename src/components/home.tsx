@@ -1,17 +1,8 @@
 import React, { useState, useEffect } from "react";
 import ChatLayout from "./chat/ChatLayout";
 import NotificationSystem from "./chat/NotificationSystem";
-
-interface Friend {
-  id: string;
-  name: string;
-  avatar: string;
-  lastMessage: string;
-  timestamp: string;
-  unreadCount: number;
-  isOnline: boolean;
-  isTyping: boolean;
-}
+import { useChat } from "@/context/ChatContext";
+import { useAuth } from "@/context/AuthContext";
 
 interface Notification {
   id: string;
@@ -27,124 +18,11 @@ interface Notification {
 }
 
 const Home = () => {
-  // Sample friends data
-  const [friends, setFriends] = useState<Friend[]>([
-    {
-      id: "1",
-      name: "Sarah Johnson",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-      lastMessage: "Hey, how's it going?",
-      timestamp: "10:30 AM",
-      unreadCount: 2,
-      isOnline: true,
-      isTyping: false,
-    },
-    {
-      id: "2",
-      name: "Michael Chen",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
-      lastMessage: "Did you see the latest update?",
-      timestamp: "9:15 AM",
-      unreadCount: 0,
-      isOnline: true,
-      isTyping: true,
-    },
-    {
-      id: "3",
-      name: "Jessica Williams",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica",
-      lastMessage: "Let's meet tomorrow at 2pm",
-      timestamp: "Yesterday",
-      unreadCount: 0,
-      isOnline: false,
-      isTyping: false,
-    },
-    {
-      id: "4",
-      name: "David Rodriguez",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=David",
-      lastMessage: "Thanks for your help!",
-      timestamp: "Yesterday",
-      unreadCount: 0,
-      isOnline: false,
-      isTyping: false,
-    },
-    {
-      id: "5",
-      name: "Emily Thompson",
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emily",
-      lastMessage: "Can you send me the files?",
-      timestamp: "Monday",
-      unreadCount: 0,
-      isOnline: true,
-      isTyping: false,
-    },
-  ]);
+  const { user } = useAuth();
+  const { friends, activeFriendId, setActiveFriendId } = useChat();
 
-  // Sample notifications
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "New Message",
-      message: "Sarah sent you a new message",
-      timestamp: new Date(),
-      read: false,
-      sender: {
-        name: "Sarah Johnson",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-      },
-    },
-  ]);
-
-  // Simulate receiving a new notification periodically
-  useEffect(() => {
-    const notificationSenders = [
-      {
-        name: "Michael Chen",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
-        messages: [
-          "Hey, are you available for a call?",
-          "Just sent you the project files",
-          "Don't forget about our meeting tomorrow",
-        ],
-      },
-      {
-        name: "Jessica Williams",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica",
-        messages: [
-          "Check out this article I found",
-          "How's the project coming along?",
-          "Are we still on for lunch next week?",
-        ],
-      },
-    ];
-
-    // Set up a timer to add a new notification every 30 seconds
-    const timer = setTimeout(() => {
-      const sender =
-        notificationSenders[
-          Math.floor(Math.random() * notificationSenders.length)
-        ];
-      const message =
-        sender.messages[Math.floor(Math.random() * sender.messages.length)];
-
-      const newNotification: Notification = {
-        id: Date.now().toString(),
-        title: "New Message",
-        message: `${sender.name}: ${message}`,
-        timestamp: new Date(),
-        read: false,
-        sender: {
-          name: sender.name,
-          avatar: sender.avatar,
-        },
-      };
-
-      setNotifications((prev) => [newNotification, ...prev]);
-    }, 30000);
-
-    return () => clearTimeout(timer);
-  }, [notifications]);
+  // Sample notifications - in a real app, these would come from the backend
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Handle notification click
   const handleNotificationClick = (notificationId: string) => {
@@ -164,8 +42,7 @@ const Home = () => {
         (f) => f.name === notification.sender?.name,
       )?.id;
       if (friendId) {
-        // In a real app, you would navigate to the chat with this friend
-        console.log(`Navigating to chat with friend ID: ${friendId}`);
+        setActiveFriendId(friendId);
       }
     }
   };
@@ -177,11 +54,34 @@ const Home = () => {
     );
   };
 
+  // Create notifications from unread messages
+  useEffect(() => {
+    if (!friends.length) return;
+
+    const unreadFriends = friends.filter((friend) => friend.unreadCount > 0);
+
+    const newNotifications = unreadFriends.map((friend) => ({
+      id: `${friend.id}-${Date.now()}`,
+      title: "New Message",
+      message: `${friend.name}: ${friend.lastMessage}`,
+      timestamp: new Date(),
+      read: false,
+      sender: {
+        name: friend.name,
+        avatar: friend.avatar,
+      },
+    }));
+
+    if (newNotifications.length > 0) {
+      setNotifications((prev) => [...newNotifications, ...prev]);
+    }
+  }, [friends]);
+
   return (
     <div className="h-screen w-full flex flex-col bg-background">
       {/* Main chat interface */}
       <div className="flex-1 overflow-hidden">
-        <ChatLayout friends={friends} initialActiveFriendId="1" />
+        <ChatLayout />
       </div>
 
       {/* Notification system */}
